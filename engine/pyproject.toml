@@ -1,0 +1,22 @@
+[project]
+name = "phantom-engine"
+version = "0.1.0"
+description = "Phantom AI Engine"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "huggingface-hub",
+    "hf-transfer",
+    "llama-cpp-python",
+    "pillow",
+    "pydantic",
+    "rich",
+    "typer"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+phantom-engine = "phantom_engine.__main__:app"

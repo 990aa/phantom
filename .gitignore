@@ -1,0 +1,12 @@
+target/
+.venv/
+__pycache__/
+node_modules/
+dist/
+build/
+src-tauri/target/
+*.gguf
+.env
+*.db
+*.db-journal
+.phantom/
