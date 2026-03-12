@@ -4,9 +4,9 @@ import json
 from .schemas import InferenceRequest, InferenceResponse
 from .model_manager import generate_response
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 
-@app.command()
+@app.command("run")
 def run():
     # Read single line of JSON from stdin
     try:
