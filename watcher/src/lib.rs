@@ -1,6 +1,7 @@
 pub mod context_grabber;
 pub mod logger;
 pub mod clipboard;
+pub mod scheduler;
 
 use serde::{Serialize, Deserialize};
 

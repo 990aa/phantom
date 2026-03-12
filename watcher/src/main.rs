@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use phantom_watcher::{AppContext, IpcEvent, context_grabber, logger, clipboard};
+use phantom_watcher::{AppContext, IpcEvent, context_grabber, logger, clipboard, scheduler};
 
 #[tokio::main]
 async fn main() {
@@ -20,6 +20,11 @@ async fn main() {
         // In a real app we would use global_hotkey::GlobalHotKeyEvent
         println!("Hotkey listener started.");
         // tx_hotkey.send(IpcEvent::HotkeyTriggered).await.unwrap();
+    });
+
+    let tx_sched = tx.clone();
+    tokio::spawn(async move {
+        scheduler::run_scheduler(tx_sched).await;
     });
 
     // Task 3: IPC Server (Named Pipe)

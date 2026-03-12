@@ -8,6 +8,6 @@
     "opener:default",
     "fs:default",
     "shell:default",
-    "clipboard:default"
+    "clipboard-manager:default"
   ]
 }

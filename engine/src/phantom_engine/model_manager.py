@@ -35,7 +35,7 @@ def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
     # 4. Fetch style_rules from SQLite
     
     model = None # Stub for the loaded model
-    style_rules = "Be concise and clear." # Stub
+    style_rules = get_style_context()
     
     task_handlers = {
         "summarize": tasks.summarize,
@@ -51,7 +51,11 @@ def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
     
     handler = task_handlers.get(req.task)
     if handler:
-        yield from handler(model, req, style_rules)
+        # tasks like summarize, simplify, explain shouldn't use style_rules directly
+        if req.task in ["summarize", "simplify", "explain", "caption", "navigate", "distill"]:
+            yield from handler(model, req, "")
+        else:
+            yield from handler(model, req, style_rules)
     else:
         yield InferenceResponse(
             type="error",
@@ -63,3 +67,22 @@ def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
     # Unload
     del model
     gc.collect()
+
+def get_style_context() -> str:
+    import sqlite3
+    import os
+    from pathlib import Path
+    
+    db_path = Path.home() / ".phantom" / "phantom.db"
+    if not db_path.exists():
+        return ""
+        
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT rule_text FROM style_rules ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else ""
+    except Exception:
+        return ""

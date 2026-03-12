@@ -2,7 +2,6 @@ import { Overlay } from './components/Overlay';
 import { ModelManager } from './components/ModelManager';
 import { Settings } from './components/Settings';
 import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
 
 function App() {
   useEffect(() => {
