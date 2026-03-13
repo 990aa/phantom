@@ -10,3 +10,4 @@ src-tauri/target/
 *.db
 *.db-journal
 .phantom/
+repomix-output.xml
