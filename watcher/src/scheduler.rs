@@ -11,7 +11,7 @@ fn get_idle_time_seconds() -> u64 {
 }
 
 fn get_db_path() -> std::path::PathBuf {
-    let mut path = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let mut path = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     path.push(".phantom");
     path.push("phantom.db");
     path
@@ -39,15 +39,15 @@ pub async fn run_scheduler(tx: Sender<IpcEvent>) {
                 
                 if count >= 50 {
                     // Check time elapsed since last distillation
-                    let last_time: String = conn.query_row(
-                        "SELECT generated_at FROM style_rules ORDER BY id DESC LIMIT 1",
+                    let seconds_since: i64 = conn.query_row(
+                        "SELECT CAST(strftime('%s', 'now') - strftime('%s', generated_at) AS INTEGER) FROM style_rules ORDER BY id DESC LIMIT 1",
                         [],
                         |row| row.get(0)
-                    ).unwrap_or_else(|_| "1970-01-01 00:00:00".to_string());
+                    ).unwrap_or(std::i64::MAX); // If no rows, default to MAX so it distills
                     
-                    // Simple logic: if count is big enough, trigger it
-                    // In real implementation we parse last_time and compare with 7 days
-                    return true;
+                    if seconds_since >= 604800 {
+                        return true;
+                    }
                 }
             }
             false

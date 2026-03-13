@@ -15,6 +15,14 @@ export function Settings() {
     }
   }, [showSettings]);
 
+  useEffect(() => {
+    invoke('save_settings', { key: 'hotkey', value: hotkey }).catch(console.error);
+  }, [hotkey]);
+
+  useEffect(() => {
+    invoke('save_settings', { key: 'learn_style', value: String(learnStyle) }).catch(console.error);
+  }, [learnStyle]);
+
   const handleClearData = async () => {
     await invoke('clear_message_log');
     await invoke('clear_style_data');

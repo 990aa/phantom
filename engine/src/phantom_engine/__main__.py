@@ -3,8 +3,16 @@ import sys
 import json
 from .schemas import InferenceRequest, InferenceResponse
 from .model_manager import generate_response
+from .downloader import download_model
 
 app = typer.Typer(no_args_is_help=True)
+
+@app.command("download")
+def download(repo: str, filename: str = ""):
+    try:
+        download_model(repo, filename)
+    except Exception as e:
+        print(json.dumps({"type": "error", "content": str(e)}))
 
 @app.command("run")
 def run():

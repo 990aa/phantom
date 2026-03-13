@@ -10,5 +10,48 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build release (stub)
-        run: echo "Release build goes here"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        
+      - name: Build Watcher (Rust)
+        working-directory: ./watcher
+        run: cargo build --release
+
+      - name: Build Engine (Python PyInstaller)
+        working-directory: ./engine
+        run: |
+          uv sync
+          uv run pyinstaller --onefile src/phantom_engine/__main__.py --name phantom-engine
+
+      - name: Build Interface (Tauri)
+        working-directory: ./ui
+        run: |
+          npm ci
+          npm run tauri build
+
+      - name: Zip Artifacts
+        run: |
+          mkdir phantom-release
+          copy watcher/target/release/phantom-watcher.exe phantom-release/
+          copy engine/dist/phantom-engine.exe phantom-release/
+          copy ui/src-tauri/target/release/tauri-app.exe phantom-release/Phantom.exe
+          Compress-Archive -Path phantom-release/* -DestinationPath Phantom-Windows.zip
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Phantom-Windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

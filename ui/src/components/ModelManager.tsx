@@ -78,7 +78,7 @@ export function ModelManager() {
               <span className="text-xs text-gray-500">{m.is_downloaded ? 'Downloaded' : 'Not Downloaded'}</span>
               <div className="space-x-2">
                 {!m.is_downloaded && (
-                  <button onClick={() => handleDownload('dummy/repo', 'dummy.gguf')} className="text-xs bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-white">Download</button>
+                  <button onClick={() => handleDownload(m.hf_repo, m.filename)} className="text-xs bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-white">Download</button>
                 )}
                 {m.is_downloaded && (
                   <button onClick={() => handleSetDefault(m.id, m.type)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-white">Set Default</button>

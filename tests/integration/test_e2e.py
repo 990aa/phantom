@@ -78,19 +78,42 @@ def test_e2e_04_style_distillation():
     assert any(o.get("type") == "done" for o in outputs)
 
 def test_e2e_05_ram_budget():
-    # Start a dummy process, wait a bit, check memory
-    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(5)"])
-    time.sleep(1)
-    p = psutil.Process(proc.pid)
-    mem_info = p.memory_info()
-    # Working set (RSS) should be under 25MB for a sleepy script
-    assert mem_info.rss < 25 * 1024 * 1024
-    proc.terminate()
+    # Spawn actual rust watcher logic instead of dummy sleep process.
+    # Note: in real CI we assume `cargo build --release` ran and watcher exists.
+    watcher_path = Path("watcher/target/release/phantom-watcher.exe")
+    if not watcher_path.exists():
+        watcher_path = Path("watcher/target/release/phantom-watcher")
+    
+    if watcher_path.exists():
+        proc = subprocess.Popen([str(watcher_path)])
+        time.sleep(2)
+        p = psutil.Process(proc.pid)
+        mem_info = p.memory_info()
+        assert mem_info.rss < 25 * 1024 * 1024
+        proc.terminate()
+    else:
+        pytest.skip("Watcher binary not found. Run cargo build --release first.")
 
 def test_e2e_06_custom_model_url():
-    # In full environment, this would call Tauri command `add_custom_model`.
-    # Here we mock the behavior.
-    assert True
+    db_path = get_db_path()
+    if db_path.exists():
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        try:
+            c.execute("INSERT INTO models (id, name, hf_repo, filename, local_path, type, is_downloaded, is_default_text, is_default_vision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                      ("test_custom_model", "Custom Model", "author/repo", "model.gguf", None, "text", 0, 0, 0))
+            conn.commit()
+            
+            c.execute("SELECT hf_repo FROM models WHERE id = 'test_custom_model'")
+            res = c.fetchone()
+            assert res is not None
+            assert res[0] == "author/repo"
+        finally:
+            c.execute("DELETE FROM models WHERE id = 'test_custom_model'")
+            conn.commit()
+            conn.close()
+    else:
+        pytest.skip("DB not initialized yet")
 
 def test_e2e_07_model_switch():
     outputs = run_engine_task("summarize", text="Test model switch", model_override="llama-3.2-1b")

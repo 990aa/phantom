@@ -1,8 +1,33 @@
 import time
 import gc
+import sqlite3
+from pathlib import Path
 from typing import Iterator
 from .schemas import InferenceRequest, InferenceResponse
 from . import tasks
+
+try:
+    from llama_cpp import Llama
+except ImportError:
+    Llama = None
+
+def get_default_model(model_type: str = "text") -> tuple[str, str]:
+    db_path = Path.home() / ".phantom" / "phantom.db"
+    if not db_path.exists():
+        return "qwen3.5-0.8b", ""
+        
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        col = "is_default_vision" if model_type == "vision" else "is_default_text"
+        cursor.execute(f"SELECT id, local_path FROM models WHERE {col} = 1 LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[1]:
+            return row[0], row[1]
+    except Exception:
+        pass
+    return "qwen3.5-0.8b", ""
 
 def check_compatibility(model_id: str, task: str) -> bool:
     text_tasks = ["summarize", "simplify", "explain", "reply", "continue", "custom", "distill"]
@@ -17,7 +42,26 @@ def check_compatibility(model_id: str, task: str) -> bool:
     return True
 
 def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
-    model_id = req.model_override or "qwen3.5-0.8b"
+    model_type = "vision" if req.task in ["caption", "navigate"] else "text"
+    model_id = req.model_override
+    local_path = ""
+    
+    if not model_id:
+        model_id, local_path = get_default_model(model_type)
+    else:
+        # User requested override, we could query for its path, but keeping it simple for now
+        db_path = Path.home() / ".phantom" / "phantom.db"
+        if db_path.exists():
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT local_path FROM models WHERE id = ?", (model_id,))
+                row = cursor.fetchone()
+                conn.close()
+                if row and row[0]:
+                    local_path = row[0]
+            except Exception:
+                pass
     
     if not check_compatibility(model_id, req.task):
         yield InferenceResponse(
@@ -28,13 +72,19 @@ def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
         )
         return
 
-    # In a real implementation:
-    # 1. Resolve model via SQLite
-    # 2. Download if missing via downloader.py
-    # 3. Load llama_cpp.Llama
-    # 4. Fetch style_rules from SQLite
+    model = None
+    if local_path and Llama is not None:
+        try:
+            model = Llama(model_path=local_path, verbose=False, n_ctx=2048)
+        except Exception as e:
+            yield InferenceResponse(
+                type="error",
+                content=f"Failed to load model: {str(e)}",
+                model_used=model_id,
+                elapsed_ms=0
+            )
+            return
     
-    model = None # Stub for the loaded model
     style_rules = get_style_context()
     
     task_handlers = {
@@ -51,8 +101,7 @@ def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
     
     handler = task_handlers.get(req.task)
     if handler:
-        # tasks like summarize, simplify, explain shouldn't use style_rules directly
-        if req.task in ["summarize", "simplify", "explain", "caption", "navigate", "distill"]:
+        if req.task in ["summarize", "simplify", "explain", "caption", "navigate", "distill", "custom"]:
             yield from handler(model, req, "")
         else:
             yield from handler(model, req, style_rules)
@@ -65,12 +114,12 @@ def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
         )
     
     # Unload
-    del model
+    if model is not None:
+        del model
     gc.collect()
 
 def get_style_context() -> str:
     import sqlite3
-    import os
     from pathlib import Path
     
     db_path = Path.home() / ".phantom" / "phantom.db"
@@ -80,7 +129,7 @@ def get_style_context() -> str:
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT rule_text FROM style_rules ORDER BY id DESC LIMIT 1")
+        cursor.execute("SELECT rules_json FROM style_rules ORDER BY id DESC LIMIT 1")
         row = cursor.fetchone()
         conn.close()
         return row[0] if row else ""

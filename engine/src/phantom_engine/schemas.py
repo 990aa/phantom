@@ -12,6 +12,7 @@ class InferenceRequest(BaseModel):
     text: Optional[str] = None
     image_path: Optional[str] = None
     model_override: Optional[str] = None
+    custom_prompt: Optional[str] = None
     context: AppContext
     stream: bool = True
 
