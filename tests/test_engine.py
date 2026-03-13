@@ -52,7 +52,7 @@ def test_engine_subprocess():
     req_json = req.model_dump_json()
     
     proc = subprocess.Popen(
-        [sys.executable, "-m", "phantom_engine"],
+        [sys.executable, "-m", "phantom_engine", "run"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True
@@ -63,6 +63,9 @@ def test_engine_subprocess():
     
     tokens_received = 0
     for line in proc.stdout:
+        line = line.strip()
+        if not line:
+            continue
         resp = json.loads(line)
         if resp["type"] == "token":
             tokens_received += 1

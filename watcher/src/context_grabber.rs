@@ -57,7 +57,7 @@ pub async fn grab_context() -> AppContext {
             )
         } {
             if let Ok(element) = unsafe { uia.ElementFromHandle(hwnd) } {
-                if let Ok(pattern) = unsafe { element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId.0 as i32) } {
+                if let Ok(pattern) = unsafe { element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) } {
                     if let Ok(selection) = unsafe { pattern.GetSelection() } {
                         if let Ok(range) = unsafe { selection.GetElement(0) } {
                             if let Ok(doc_range) = unsafe { pattern.DocumentRange() } {

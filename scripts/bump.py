@@ -79,8 +79,15 @@ def main():
         update_file(path, pattern, template, new_version, max_replacements)
         
     # Auto commit
-    print("Committing changes...")
-    subprocess.run(["git", "add", "."], check=True)
+    print("Running repomix...")
+    try:
+        subprocess.run(["repomix"], check=True, shell=True)
+    except Exception as e:
+        print(f"Failed to run repomix: {e}")
+
+    print("Committing version changes...")
+    files_to_add = [f[0] for f in FILES_TO_UPDATE]
+    subprocess.run(["git", "add"] + files_to_add, check=True)
     subprocess.run(["git", "commit", "-m", f"chore: bump version to {new_version}"], check=True)
     print("Done!")
 

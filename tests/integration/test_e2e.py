@@ -24,7 +24,7 @@ def run_engine_task(task, text="", image_path=None, model_override=None):
     req_json = req.model_dump_json()
     
     proc = subprocess.Popen(
-        [sys.executable, "-m", "phantom_engine"],
+        [sys.executable, "-m", "phantom_engine", "run"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -36,6 +36,9 @@ def run_engine_task(task, text="", image_path=None, model_override=None):
     
     outputs = []
     for line in proc.stdout:
+        line = line.strip()
+        if not line:
+            continue
         outputs.append(json.loads(line))
         if outputs[-1].get("type") == "done":
             break

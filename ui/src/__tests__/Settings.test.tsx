@@ -4,7 +4,7 @@ import { Settings } from '../components/Settings';
 import { useStore } from '../store';
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn().mockResolvedValue(''),
 }));
 
 describe('Settings', () => {

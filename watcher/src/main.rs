@@ -26,10 +26,9 @@ async fn main() {
     tokio::spawn(async move {
         let receiver = GlobalHotKeyEvent::receiver();
         loop {
-            if let Ok(event) = receiver.recv() {
-                if event.state == global_hotkey::HotKeyState::Pressed {
-                    let _ = tx_hotkey.send(IpcEvent::HotkeyTriggered).await;
-                }
+            if let Ok(event) = receiver.try_recv() {
+                // If we received an event, it means the hotkey was triggered.
+                let _ = tx_hotkey.send(IpcEvent::HotkeyTriggered).await;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }

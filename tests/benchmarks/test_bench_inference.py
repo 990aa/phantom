@@ -16,7 +16,7 @@ def run_summarize(model_name: str):
     req_json = req.model_dump_json()
     
     proc = subprocess.Popen(
-        [sys.executable, "-m", "phantom_engine"],
+        [sys.executable, "-m", "phantom_engine", "run"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -41,6 +41,10 @@ def run_summarize(model_name: str):
                 peak_rss = current_rss
         except psutil.NoSuchProcess:
             pass
+            
+        line = line.strip()
+        if not line:
+            continue
             
         resp = json.loads(line)
         if resp.get("type") == "token":
