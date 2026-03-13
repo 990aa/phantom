@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use rusqlite::{Connection, params};
 use tauri::{AppHandle, Manager, Emitter};
-use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::Command;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{TrayIconBuilder, MouseButton, TrayIconEvent};
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelInfo {
@@ -40,6 +41,7 @@ pub struct AppContext {
     pub window_title: String,
     pub text_before: String,
     pub text_after: String,
+    pub screenshot_path: Option<String>,
 }
 
 fn get_db_path() -> PathBuf {
@@ -51,7 +53,9 @@ fn get_db_path() -> PathBuf {
 }
 
 fn get_conn() -> Result<Connection, String> {
-    Connection::open(get_db_path()).map_err(|e| e.to_string())
+    let conn = Connection::open(get_db_path()).map_err(|e| e.to_string())?;
+    conn.execute_batch(include_str!("../../../shared/schema.sql")).map_err(|e| e.to_string())?;
+    Ok(conn)
 }
 
 #[tauri::command]
@@ -97,18 +101,19 @@ async fn set_default_model(model_id: String, model_type: String) -> Result<(), S
 
 #[tauri::command]
 async fn download_model(app: AppHandle, hf_repo: String, filename: String) -> Result<(), String> {
-    tokio::spawn(async move {
-        let mut child = Command::new("uv")
-            .args(&["run", "phantom-engine", "download", "--repo", &hf_repo, "--filename", &filename])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("Failed to spawn engine");
+    let (mut rx, _child) = app.shell().sidecar("phantom-engine")
+        .map_err(|e| e.to_string())?
+        .args(["download", "--repo", &hf_repo, "--filename", &filename])
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
-        if let Some(stdout) = child.stdout.take() {
-            let mut reader = BufReader::new(stdout).lines();
-            while let Ok(Some(line)) = reader.next_line().await {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
-                    let _ = app.emit("download-progress", json);
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            if let CommandEvent::Stdout(line_bytes) = event {
+                if let Ok(line) = String::from_utf8(line_bytes) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                        let _ = app.emit("download-progress", json);
+                    }
                 }
             }
         }
@@ -120,27 +125,28 @@ async fn download_model(app: AppHandle, hf_repo: String, filename: String) -> Re
 async fn run_inference(app: AppHandle, request: InferenceRequest) -> Result<(), String> {
     let req_json = serde_json::to_string(&request).map_err(|e| e.to_string())?;
     
-    tokio::spawn(async move {
-        let mut child = Command::new("uv")
-            .args(&["run", "phantom-engine"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("Failed to spawn engine");
+    let (mut rx, mut child) = app.shell().sidecar("phantom-engine")
+        .map_err(|e| e.to_string())?
+        .args(["run"])
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(req_json.as_bytes()).await;
-            let _ = stdin.write_all(b"\n").await;
-        }
+    tauri::async_runtime::spawn(async move {
+        let _ = child.write(req_json.as_bytes());
+        let _ = child.write(b"\n");
 
-        if let Some(stdout) = child.stdout.take() {
-            let mut reader = BufReader::new(stdout).lines();
-            while let Ok(Some(line)) = reader.next_line().await {
-                if line == "[DONE]" {
-                    let _ = app.emit("done", ());
-                    break;
+        while let Some(event) = rx.recv().await {
+            if let CommandEvent::Stdout(line_bytes) = event {
+                if let Ok(line) = String::from_utf8(line_bytes) {
+                    let line = line.trim();
+                    if line == "[DONE]" {
+                        let _ = app.emit("done", ());
+                        break;
+                    }
+                    if !line.is_empty() {
+                        let _ = app.emit("token", line);
+                    }
                 }
-                let _ = app.emit("token", line);
             }
         }
     });
@@ -215,6 +221,91 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .setup(|app| {
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let open_i = MenuItem::with_id(app, "open", "Open Phantom", true, None::<&str>)?;
+            let model_i = MenuItem::with_id(app, "models", "Model Manager", true, None::<&str>)?;
+            let settings_i = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open_i, &model_i, &settings_i, &quit_i])?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        std::process::exit(0);
+                    }
+                    "open" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "models" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("open-models", ());
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("open-settings", ());
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            #[cfg(windows)]
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                        if let Ok(mut client) = tokio::net::windows::named_pipe::ClientOptions::new().open(r"\\.\pipe\phantom-ipc") {
+                            use tokio::io::AsyncBufReadExt;
+                            let mut reader = tokio::io::BufReader::new(client);
+                            let mut line = String::new();
+                            while let Ok(bytes) = reader.read_line(&mut line).await {
+                                if bytes == 0 { break; }
+                                if line.contains("HotkeyTriggered") {
+                                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                                        if let Some(ctx) = json.get("HotkeyTriggered") {
+                                            let _ = app_handle.emit("context-received", ctx.clone());
+                                            if let Some(window) = app_handle.get_webview_window("main") {
+                                                let _ = window.show();
+                                                let _ = window.set_focus();
+                                            }
+                                        }
+                                    }
+                                }
+                                line.clear();
+                            }
+                        }
+                    }
+                });
+            }
+
+            Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .invoke_handler(tauri::generate_handler![
             get_models,
             set_default_model,

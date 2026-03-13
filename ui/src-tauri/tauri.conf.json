@@ -23,10 +23,10 @@
       }
     ],
     "trayIcon": {
-      "iconPath": "icons/icon.png"
+      "iconPath": "icons/32x32.png"
     },
     "systemTray": {
-      "iconPath": "icons/icon.png",
+      "iconPath": "icons/32x32.png",
       "menuOnLeftClick": false
     },
     "security": {

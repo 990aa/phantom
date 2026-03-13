@@ -5,6 +5,8 @@ import { invoke } from '@tauri-apps/api/core';
 interface ModelInfo {
   id: string;
   name: string;
+  hf_repo: string;
+  filename: string;
   type: string;
   size_bytes: number | null;
   is_downloaded: boolean;
@@ -15,6 +17,7 @@ interface ModelInfo {
 export function ModelManager() {
   const { showModelManager, setShowModelManager, setActiveModelName } = useStore();
   const [models, setModels] = useState<ModelInfo[]>([]);
+  const [settings, setSettings] = useState<Record<string, string>>({});
   const [customUrl, setCustomUrl] = useState('');
   const [customName, setCustomName] = useState('');
   const [customType, setCustomType] = useState('text');
@@ -22,6 +25,7 @@ export function ModelManager() {
   useEffect(() => {
     if (showModelManager) {
       loadModels();
+      loadSettings();
     }
   }, [showModelManager]);
 
@@ -29,6 +33,15 @@ export function ModelManager() {
     try {
       const data: ModelInfo[] = await invoke('get_models');
       setModels(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const data: Record<string, string> = await invoke('get_settings');
+      setSettings(data);
     } catch (e) {
       console.error(e);
     }
@@ -54,16 +67,27 @@ export function ModelManager() {
     }
   };
 
+  const handleSetTaskModel = async (task: string, modelId: string) => {
+    try {
+      await invoke('save_settings', { key: `preferred_model_${task}`, value: modelId });
+      loadSettings();
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
   if (!showModelManager) return null;
+
+  const tasks = ['summarize', 'simplify', 'explain', 'reply', 'continue', 'caption', 'navigate', 'custom', 'distill'];
 
   return (
     <div className="flex flex-col h-full bg-gray-900 absolute inset-0 z-50 p-4 rounded-xl">
-      <div className="flex justify-between items-center pb-2 border-b border-gray-700">
+      <div className="flex justify-between items-center pb-2 border-b border-gray-700 mb-2">
         <h2 className="text-sm font-semibold text-gray-200">Model Manager</h2>
         <button onClick={() => setShowModelManager(false)} className="text-gray-400 hover:text-white">✕</button>
       </div>
 
-      <div className="flex-1 overflow-y-auto mt-2 space-y-3 pr-2 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
         {models.map(m => (
           <div key={m.id} className="bg-gray-800 p-2 rounded-lg border border-gray-700">
             <div className="flex justify-between items-center">
@@ -89,6 +113,28 @@ export function ModelManager() {
         ))}
 
         <div className="mt-4 border-t border-gray-700 pt-4">
+          <h3 className="text-xs font-semibold text-gray-400 mb-2">Task Preferred Models</h3>
+          {tasks.map(task => (
+            <div key={task} className="flex justify-between items-center mb-2">
+              <span className="text-xs text-gray-300 capitalize">{task}</span>
+              <select
+                value={settings[`preferred_model_${task}`] || ''}
+                onChange={(e) => handleSetTaskModel(task, e.target.value)}
+                className="text-xs bg-gray-800 border border-gray-700 rounded p-1 text-white outline-none focus:border-blue-500 w-1/2"
+              >
+                <option value="">Default</option>
+                {models.filter(m => m.is_downloaded && (
+                  (m.type === 'vision' && ['caption', 'navigate'].includes(task)) || 
+                  (m.type === 'text' && !['caption', 'navigate'].includes(task))
+                )).map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 border-t border-gray-700 pt-4 pb-4">
           <h3 className="text-xs font-semibold text-gray-400 mb-2">Add Custom GGUF</h3>
           <input 
             type="text" 
@@ -112,7 +158,7 @@ export function ModelManager() {
             <option value="text">Text Model</option>
             <option value="vision">Vision Model</option>
           </select>
-          <button className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs py-2 rounded font-medium">Add Model</button>
+          <button className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs py-2 rounded font-medium mt-2">Add Model</button>
         </div>
       </div>
     </div>

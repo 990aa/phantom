@@ -8,8 +8,9 @@ It works seamlessly with your existing workflow, giving you contextual AI capabi
 
 - **Local & Private:** Everything runs on your machine. No data is sent to external servers.
 - **Resource Efficient:** Idles at < 15 MB RAM. The AI model is only loaded into memory when requested.
-- **Context-Aware:** Grabs context from the active window or clipboard automatically.
-- **Floating Overlay:** Provides a non-intrusive UI that appears over your current application.
+- **Context-Aware:** Grabs context from the active window or clipboard automatically. If UI accessibility fails, it transparently falls back to taking localized screenshots for vision processing.
+- **Floating Overlay & System Tray:** Provides a non-intrusive UI that appears over your current application and runs quietly in the system tray. Auto-starts natively with Windows.
+- **Task-Specific Models:** Assign and persist specific models for precise tasks (e.g. use a lightweight 0.8B model for text completion, but instantly switch to a larger vision model for captions).
 - **GPU-Optional:** Works on CPU-only machines but can leverage GPU acceleration via `llama-cpp-python`.
 - **Customizable:** Load your own GGUF models and tweak style distillation rules.
 

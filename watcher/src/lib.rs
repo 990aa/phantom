@@ -11,11 +11,12 @@ pub struct AppContext {
     pub window_title: String,
     pub text_before: String,
     pub text_after: String,
+    pub screenshot_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum IpcEvent {
-    HotkeyTriggered,
+    HotkeyTriggered(AppContext),
     ClipboardChanged(String),
     TriggerStyleDistillation,
 }

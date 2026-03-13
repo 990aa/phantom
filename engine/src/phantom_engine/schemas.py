@@ -7,6 +7,7 @@ class AppContext(BaseModel):
     window_title: str
     text_before: str
     text_after: str
+    screenshot_path: Optional[str] = None
 
 
 class InferenceRequest(BaseModel):

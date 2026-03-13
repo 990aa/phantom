@@ -1,7 +1,7 @@
 import gc
 import sqlite3
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 from .schemas import InferenceRequest, InferenceResponse
 from . import tasks
 
@@ -10,9 +10,34 @@ try:
 except ImportError:
     Llama = None
 
+def init_db(db_path: Path):
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='models'")
+        if not cursor.fetchone():
+            possible_paths = [
+                Path(__file__).parent.parent.parent.parent / "shared" / "schema.sql",
+                Path.cwd() / "shared" / "schema.sql",
+                Path.cwd().parent / "shared" / "schema.sql"
+            ]
+            for p in possible_paths:
+                if p.exists():
+                    with open(p, 'r') as f:
+                        conn.executescript(f.read())
+                    break
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 def get_default_model(model_type: str = "text") -> tuple[str, str]:
     db_path = Path.home() / ".phantom" / "phantom.db"
+    if not db_path.parent.exists():
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    init_db(db_path)
+
     if not db_path.exists():
         return "qwen3.5-0.8b", ""
 
@@ -28,6 +53,23 @@ def get_default_model(model_type: str = "text") -> tuple[str, str]:
     except Exception:
         pass
     return "qwen3.5-0.8b", ""
+
+
+def get_preferred_model(task: str) -> Optional[str]:
+    db_path = Path.home() / ".phantom" / "phantom.db"
+    if not db_path.exists():
+        return None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (f"preferred_model_{task}",))
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0]:
+            return row[0]
+    except Exception:
+        pass
+    return None
 
 
 def check_compatibility(model_id: str, task: str) -> bool:
@@ -57,7 +99,11 @@ def check_compatibility(model_id: str, task: str) -> bool:
 
 def generate_response(req: InferenceRequest) -> Iterator[InferenceResponse]:
     model_type = "vision" if req.task in ["caption", "navigate"] else "text"
+    
     model_id = req.model_override
+    if not model_id:
+        model_id = get_preferred_model(req.task)
+
     local_path = ""
 
     if not model_id:

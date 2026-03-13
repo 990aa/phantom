@@ -9,6 +9,7 @@ fn test_ipc_serialization() {
         window_title: "Test Window".into(),
         text_before: "hello ".into(),
         text_after: " world".into(),
+        screenshot_path: None,
     };
     
     let serialized = serde_json::to_string(&ctx).unwrap();

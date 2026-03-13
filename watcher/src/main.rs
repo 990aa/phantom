@@ -10,6 +10,20 @@ use std::time::Duration;
 #[tokio::main]
 async fn main() {
     env_logger::init();
+    
+    // Auto-start
+    if let Ok(exe_path) = std::env::current_exe() {
+        let _ = std::process::Command::new("reg")
+            .args([
+                "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", 
+                "/v", "PhantomWatcher", 
+                "/t", "REG_SZ", 
+                "/d", &exe_path.to_string_lossy(), 
+                "/f"
+            ])
+            .output();
+    }
+
     let (tx, mut rx) = mpsc::channel::<IpcEvent>(100);
     let (pipe_tx, mut pipe_rx) = mpsc::channel::<IpcEvent>(100); // Channel to send events to pipe
 
@@ -26,9 +40,15 @@ async fn main() {
     tokio::spawn(async move {
         let receiver = GlobalHotKeyEvent::receiver();
         loop {
-            if let Ok(event) = receiver.try_recv() {
+            if let Ok(_event) = receiver.try_recv() {
                 // If we received an event, it means the hotkey was triggered.
-                let _ = tx_hotkey.send(IpcEvent::HotkeyTriggered).await;
+                let _ = tx_hotkey.send(IpcEvent::HotkeyTriggered(AppContext {
+                    process_name: String::new(),
+                    window_title: String::new(),
+                    text_before: String::new(),
+                    text_after: String::new(),
+                    screenshot_path: None,
+                })).await;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -88,12 +108,12 @@ async fn main() {
     // Dispatcher
     while let Some(event) = rx.recv().await {
         match event {
-            IpcEvent::HotkeyTriggered => {
+            IpcEvent::HotkeyTriggered(_) => {
                 println!("Hotkey triggered. Grabbing context...");
                 let ctx = context_grabber::grab_context().await;
                 println!("Context: {:?}", ctx);
                 // Send to Tauri frontend via named pipe
-                let _ = pipe_tx_clone.send(IpcEvent::HotkeyTriggered).await;
+                let _ = pipe_tx_clone.send(IpcEvent::HotkeyTriggered(ctx)).await;
             }
             IpcEvent::ClipboardChanged(text) => {
                 println!("Clipboard changed");
@@ -125,7 +145,6 @@ async fn main() {
                         .spawn();
                 }
             }
-            _ => {}
         }
     }
 }

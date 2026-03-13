@@ -1,6 +1,7 @@
 use crate::AppContext;
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
+use std::path::PathBuf;
 use windows::core::{BSTR, Interface};
 use windows::Win32::Foundation::{HWND, MAX_PATH, POINT};
 use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
@@ -48,6 +49,7 @@ pub async fn grab_context() -> AppContext {
         
         let mut text_before = String::new();
         let mut text_after = String::new();
+        let mut text_found = false;
 
         if let Ok(uia) = unsafe {
             windows::Win32::System::Com::CoCreateInstance::<_, IUIAutomation>(
@@ -59,10 +61,14 @@ pub async fn grab_context() -> AppContext {
             if let Ok(element) = unsafe { uia.ElementFromHandle(hwnd) } {
                 if let Ok(pattern) = unsafe { element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) } {
                     if let Ok(selection) = unsafe { pattern.GetSelection() } {
-                        if let Ok(range) = unsafe { selection.GetElement(0) } {
+                        if let Ok(_range) = unsafe { selection.GetElement(0) } {
                             if let Ok(doc_range) = unsafe { pattern.DocumentRange() } {
                                 if let Ok(text) = unsafe { doc_range.GetText(-1) } {
-                                    text_before = text.to_string();
+                                    let txt = text.to_string();
+                                    if !txt.is_empty() {
+                                        text_before = txt;
+                                        text_found = true;
+                                    }
                                 }
                             }
                         }
@@ -73,11 +79,28 @@ pub async fn grab_context() -> AppContext {
 
         unsafe { CoUninitialize() };
         
+        let mut screenshot_path = None;
+        
+        if !text_found {
+            if let Ok(screens) = screenshots::Screen::all() {
+                if let Some(screen) = screens.first() {
+                    if let Ok(image) = screen.capture() {
+                        let mut path = std::env::temp_dir();
+                        path.push("phantom_ctx.png");
+                        if image.save(&path).is_ok() {
+                            screenshot_path = Some(path.to_string_lossy().into_owned());
+                        }
+                    }
+                }
+            }
+        }
+
         AppContext {
             process_name,
             window_title,
             text_before,
             text_after,
+            screenshot_path,
         }
     })
     .await
@@ -86,6 +109,7 @@ pub async fn grab_context() -> AppContext {
         window_title: "unknown".into(),
         text_before: "".into(),
         text_after: "".into(),
+        screenshot_path: None,
     });
     
     result
