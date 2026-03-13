@@ -17,7 +17,4 @@ android_app/.dart_tool/
 android_app/.flutter-plugins
 android_app/.flutter-plugins-dependencies
 android_app/build/
-android_app/android/.gradle/
-android_app/android/app/src/main/cpp/llama.cpp/  # if not using submodule
-android_app/*.jks  
 .pytest_cache/
