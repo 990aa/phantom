@@ -1,6 +1,6 @@
 [package]
 name = "phantom-watcher"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["990aa"]
 edition = "2021"
 rust-version = "1.75"
