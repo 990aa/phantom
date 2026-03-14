@@ -28,7 +28,7 @@ FFI_PLUGIN_EXPORT int64_t phantom_load_model(const char* model_path) {
     llama_backend_init();
     
     llama_model_params model_params = llama_model_default_params();
-    llama_model* model = llama_load_model_from_file(model_path, model_params);
+    llama_model* model = llama_model_load_from_file(model_path, model_params);
     if (!model) {
         LOGE("Failed to load model");
         return 0;
@@ -36,10 +36,10 @@ FFI_PLUGIN_EXPORT int64_t phantom_load_model(const char* model_path) {
     
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = 2048;
-    llama_context* ctx = llama_new_context_with_model(model, ctx_params);
+    llama_context* ctx = llama_init_from_model(model, ctx_params);
     if (!ctx) {
         LOGE("Failed to create context");
-        llama_free_model(model);
+        llama_model_free(model);
         return 0;
     }
     
@@ -83,7 +83,7 @@ FFI_PLUGIN_EXPORT void phantom_unload_model(int64_t ctx_handle) {
     LlamaContext* p_ctx = reinterpret_cast<LlamaContext*>(ctx_handle);
     if (p_ctx) {
         if (p_ctx->ctx) llama_free(p_ctx->ctx);
-        if (p_ctx->model) llama_free_model(p_ctx->model);
+        if (p_ctx->model) llama_model_free(p_ctx->model);
         delete p_ctx;
     }
 }

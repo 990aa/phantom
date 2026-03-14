@@ -43,12 +43,8 @@ CREATE TABLE IF NOT EXISTS custom_models (
 );
 
 -- Seed built-in models
-INSERT OR IGNORE INTO models (id, name, hf_repo, filename, type, is_default_text, is_default_vision) VALUES
-('qwen3.5-0.8b', 'Qwen3.5-0.8B', 'unsloth/Qwen3.5-0.8B-GGUF', 'qwen3.5-0.8b-q4_k_m.gguf', 'text', 1, 0),
-('qwen3.5-2b', 'Qwen3.5-2B', 'unsloth/Qwen3.5-2B-GGUF', 'qwen3.5-2b-q4_k_m.gguf', 'text', 0, 0),
-('qwen3.5-4b', 'Qwen3.5-4B', 'unsloth/Qwen3.5-4B-GGUF', 'qwen3.5-4b-q4_k_m.gguf', 'text', 0, 0),
-('llama-3.2-1b', 'Llama-3.2-1B', 'bartowski/Llama-3.2-1B-Instruct-GGUF', 'llama-3.2-1b-instruct-q4_k_m.gguf', 'text', 0, 0),
-('smollm2-1.7b', 'SmolLM2-1.7B', 'bartowski/SmolLM2-1.7B-Instruct-GGUF', 'smollm2-1.7b-instruct-q4_k_m.gguf', 'text', 0, 0),
-('moondream2', 'Moondream2', 'vikhyatk/moondream2', 'moondream2-text-model-f16.gguf', 'vision', 0, 1),
-('qwen3-vl-8b', 'Qwen3-VL-8B', 'unsloth/Qwen3-VL-8B-Instruct-GGUF', 'qwen3-vl-8b-instruct-q4_k_m.gguf', 'vision', 0, 0),
-('smolvlm2-2b', 'SmolVLM2-2B', 'HuggingFaceTB/SmolVLM2-2B-Instruct', 'smolvlm2-2b-instruct-q4_k_m.gguf', 'vision', 0, 0);
+INSERT OR IGNORE INTO models (id, name, hf_repo, filename, mmproj_filename, type, is_default_text, is_default_vision) VALUES
+('qwen3.5-0.8b', 'Qwen3.5-0.8B', 'unsloth/Qwen3.5-0.8B-GGUF', 'Qwen3.5-0.8B-Q4_K_M.gguf', NULL, 'text', 1, 0),
+('llama-3.2-1b', 'Llama-3.2-1B', 'bartowski/Llama-3.2-1B-Instruct-GGUF', 'Llama-3.2-1B-Instruct-Q4_K_M.gguf', NULL, 'text', 0, 0),
+('moondream2', 'Moondream2', 'moondream/moondream2-gguf', 'moondream2-text-model-f16.gguf', 'moondream2-mmproj-f16.gguf', 'vision', 0, 1),
+('smolvlm2-2.2b', 'SmolVLM2-2.2B', 'bartowski/SmolVLM2-2.2B-Instruct-GGUF', 'SmolVLM2-2.2B-Instruct-Q4_K_M.gguf', 'SmolVLM2-2.2B-Instruct-mmproj-f16.gguf', 'vision', 0, 0);

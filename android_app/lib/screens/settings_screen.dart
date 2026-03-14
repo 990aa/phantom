@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // Accessibility Banner
           Container(
-            color: Colors.red.withOpacity(0.1),
+            color: Colors.red.withValues(alpha: 0.1),
             child: ListTile(
               leading: const Icon(Icons.accessibility, color: Colors.red),
               title: const Text('Accessibility Permission Required'),

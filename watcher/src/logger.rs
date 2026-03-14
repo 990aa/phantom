@@ -1,9 +1,11 @@
-use rusqlite::{Connection, Result};
+use rusqlite::Connection;
 use std::path::PathBuf;
 
 pub async fn log_message(content: &str, direction: &str, app_context: &str) {
-    if content.len() > 800 { return; }
-    
+    if content.len() > 800 {
+        return;
+    }
+
     let db_path = get_db_path();
     let content_cloned = content.to_string();
     let dir_cloned = direction.to_string();
@@ -16,7 +18,9 @@ pub async fn log_message(content: &str, direction: &str, app_context: &str) {
                 (content_cloned, dir_cloned, app_ctx_cloned),
             );
         }
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 }
 
 fn get_db_path() -> PathBuf {

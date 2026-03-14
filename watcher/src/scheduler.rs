@@ -1,8 +1,7 @@
-use std::time::Duration;
-use tokio::sync::mpsc::Sender;
 use crate::IpcEvent;
 use rusqlite::Connection;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
+use tokio::sync::mpsc::Sender;
 
 // Placeholder for Windows API
 fn get_idle_time_seconds() -> u64 {
@@ -20,31 +19,29 @@ fn get_db_path() -> std::path::PathBuf {
 pub async fn run_scheduler(tx: Sender<IpcEvent>) {
     loop {
         tokio::time::sleep(Duration::from_secs(60)).await;
-        
+
         let idle_secs = get_idle_time_seconds();
         if idle_secs < 600 {
             continue;
         }
 
         let db_path = get_db_path();
-        
+
         let should_distill = tokio::task::spawn_blocking(move || -> bool {
             if let Ok(conn) = Connection::open(&db_path) {
                 // Check if we need to distill
-                let count: i64 = conn.query_row(
-                    "SELECT COUNT(*) FROM message_log",
-                    [],
-                    |row| row.get(0)
-                ).unwrap_or(0);
-                
+                let count: i64 = conn
+                    .query_row("SELECT COUNT(*) FROM message_log", [], |row| row.get(0))
+                    .unwrap_or(0);
+
                 if count >= 50 {
                     // Check time elapsed since last distillation
                     let seconds_since: i64 = conn.query_row(
                         "SELECT CAST(strftime('%s', 'now') - strftime('%s', generated_at) AS INTEGER) FROM style_rules ORDER BY id DESC LIMIT 1",
                         [],
                         |row| row.get(0)
-                    ).unwrap_or(std::i64::MAX); // If no rows, default to MAX so it distills
-                    
+                    ).unwrap_or(i64::MAX); // If no rows, default to MAX so it distills
+
                     if seconds_since >= 604800 {
                         return true;
                     }
@@ -52,7 +49,7 @@ pub async fn run_scheduler(tx: Sender<IpcEvent>) {
             }
             false
         }).await.unwrap_or(false);
-        
+
         if should_distill {
             let _ = tx.send(IpcEvent::TriggerStyleDistillation).await;
         }

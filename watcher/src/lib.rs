@@ -1,9 +1,9 @@
+pub mod clipboard;
 pub mod context_grabber;
 pub mod logger;
-pub mod clipboard;
 pub mod scheduler;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AppContext {

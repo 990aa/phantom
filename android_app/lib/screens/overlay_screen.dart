@@ -3,12 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../engine/tasks.dart';
 
-final overlayInferenceProvider = StateNotifierProvider<InferenceNotifier, String>((ref) {
-  return InferenceNotifier();
-});
-
-class InferenceNotifier extends StateNotifier<String> {
-  InferenceNotifier() : super('');
+class InferenceNotifier extends Notifier<String> {
+  @override
+  String build() => '';
 
   void generate(String task, String contextText, String customPrompt) {
     state = 'Waiting...';
@@ -43,6 +40,10 @@ class InferenceNotifier extends StateNotifier<String> {
     state = '';
   }
 }
+
+final overlayInferenceProvider = NotifierProvider<InferenceNotifier, String>(() {
+  return InferenceNotifier();
+});
 
 class OverlayScreen extends ConsumerStatefulWidget {
   const OverlayScreen({super.key});
@@ -105,7 +106,7 @@ class _OverlayScreenState extends ConsumerState<OverlayScreen> {
                       child: ChoiceChip(
                         label: Text(task),
                         selected: _activeTask == task,
-                        selectedColor: isVision ? Colors.blue.withOpacity(0.3) : Colors.red.withOpacity(0.3),
+                        selectedColor: isVision ? Colors.blue.withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.3),
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _activeTask = task);

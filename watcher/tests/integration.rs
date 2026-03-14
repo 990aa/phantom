@@ -11,10 +11,10 @@ fn test_ipc_serialization() {
         text_after: " world".into(),
         screenshot_path: None,
     };
-    
+
     let serialized = serde_json::to_string(&ctx).unwrap();
     assert!(serialized.contains("test.exe"));
-    
+
     let deserialized: phantom_watcher::AppContext = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized.process_name, "test.exe");
 }

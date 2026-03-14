@@ -29,6 +29,7 @@ class _ModelsScreenState extends ConsumerState<ModelsScreen> {
     final url = _urlController.text;
     final name = _nameController.text;
     if (!url.endsWith('.gguf') || !url.contains('huggingface.co')) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid HuggingFace GGUF URL')),
       );
@@ -36,7 +37,6 @@ class _ModelsScreenState extends ConsumerState<ModelsScreen> {
     }
 
     // Parse repo and filename from url
-    // https://huggingface.co/repo/id/resolve/main/filename.gguf
     try {
       final parts = url.split('/');
       final filename = parts.last;
@@ -60,18 +60,20 @@ class _ModelsScreenState extends ConsumerState<ModelsScreen> {
               setState(() {
                 _isDownloading = false;
               });
-              ref.refresh(modelListProvider);
+              final _ = ref.refresh(modelListProvider);
             },
             onError: (err) {
               setState(() {
                 _isDownloading = false;
               });
+              if (!mounted) return;
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text('Download failed: $err')));
             },
           );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not parse URL')));
@@ -89,7 +91,7 @@ class _ModelsScreenState extends ConsumerState<ModelsScreen> {
           // RAM Warning
           Container(
             padding: const EdgeInsets.all(8),
-            color: Colors.orange.withOpacity(0.2),
+            color: Colors.orange.withValues(alpha: 0.2),
             child: const Row(
               children: [
                 Icon(Icons.warning, color: Colors.orange),

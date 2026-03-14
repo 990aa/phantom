@@ -4,6 +4,7 @@ import threading
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 from huggingface_hub import hf_hub_download
 
 
@@ -23,20 +24,19 @@ def download_model(repo_id: str, filename: str) -> str:
     if not filename:
         raise ValueError("Filename could not be determined")
 
-    # Start download in a thread so we can stream progress
-    download_thread = None
-    local_path = None
-    exc = None
+    local_path: Optional[str] = None
+    exc: Optional[Exception] = None
 
     def _do_download():
         nonlocal local_path, exc
         try:
-            local_path = hf_hub_download(
+            # hf_hub_download returns the local path as a string
+            path = hf_hub_download(
                 repo_id=repo_id,
                 filename=filename,
                 local_dir=target_dir,
-                show_progress=False,
             )
+            local_path = str(path)
         except Exception as e:
             exc = e
 
@@ -58,13 +58,16 @@ def download_model(repo_id: str, filename: str) -> str:
     if exc:
         raise exc
 
+    if local_path is None:
+        raise RuntimeError("Download failed: local_path is None")
+
     print(
         json.dumps(
             {
                 "type": "progress",
                 "downloaded_bytes": -1,
                 "status": "complete",
-                "local_path": str(local_path),
+                "local_path": local_path,
             }
         )
     )

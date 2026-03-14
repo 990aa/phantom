@@ -1,8 +1,8 @@
-version: '3.8'
 services:
-  phantom-dev:
+  engine:
     build: .
     volumes:
-      - .:/app
-    stdin_open: true
-    tty: true
+      - ~/.phantom:/root/.phantom
+    environment:
+      - TASK=summarize
+      - TEXT="Hello from Docker"

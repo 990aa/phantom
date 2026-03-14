@@ -1,9 +1,7 @@
 use crate::AppContext;
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
-use std::path::PathBuf;
-use windows::core::{BSTR, Interface};
-use windows::Win32::Foundation::{HWND, MAX_PATH, POINT};
+use windows::Win32::Foundation::{HWND, MAX_PATH};
 use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 use windows::Win32::System::ProcessStatus::GetProcessImageFileNameW;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
@@ -46,9 +44,9 @@ pub async fn grab_context() -> AppContext {
         let hwnd = unsafe { GetForegroundWindow() };
         let window_title = get_window_title(hwnd);
         let process_name = get_process_name(hwnd);
-        
+
         let mut text_before = String::new();
-        let mut text_after = String::new();
+        let text_after = String::new();
         let mut text_found = false;
 
         if let Ok(uia) = unsafe {
@@ -59,7 +57,9 @@ pub async fn grab_context() -> AppContext {
             )
         } {
             if let Ok(element) = unsafe { uia.ElementFromHandle(hwnd) } {
-                if let Ok(pattern) = unsafe { element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) } {
+                if let Ok(pattern) = unsafe {
+                    element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
+                } {
                     if let Ok(selection) = unsafe { pattern.GetSelection() } {
                         if let Ok(_range) = unsafe { selection.GetElement(0) } {
                             if let Ok(doc_range) = unsafe { pattern.DocumentRange() } {
@@ -78,9 +78,9 @@ pub async fn grab_context() -> AppContext {
         }
 
         unsafe { CoUninitialize() };
-        
+
         let mut screenshot_path = None;
-        
+
         if !text_found {
             if let Ok(screens) = screenshots::Screen::all() {
                 if let Some(screen) = screens.first() {
@@ -111,6 +111,6 @@ pub async fn grab_context() -> AppContext {
         text_after: "".into(),
         screenshot_path: None,
     });
-    
+
     result
 }

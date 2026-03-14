@@ -12,12 +12,22 @@ FILES_TO_UPDATE = [
     ("ui/src-tauri/Cargo.toml", r'version\s*=\s*"([^"]+)"', r'version = "{new_version}"', 1),
     ("watcher/Cargo.toml", r'version\s*=\s*"([^"]+)"', r'version = "{new_version}"', 1),
     ("engine/pyproject.toml", r'version\s*=\s*"([^"]+)"', r'version = "{new_version}"', 1),
+    ("android_app/pubspec.yaml", r'version:\s*([^\s\+]+)\+(\d+)', r'version: {new_version}+{build_number}'),
 ]
 
 def get_current_version():
     with open("ui/package.json", "r", encoding="utf-8") as f:
         data = json.load(f)
         return data["version"]
+
+def get_current_build_number():
+    path = Path("android_app/pubspec.yaml")
+    if not path.exists(): return 1
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+        match = re.search(r'version:\s*[^\s\+]+\+(\d+)', content)
+        if match: return int(match.group(1))
+    return 1
 
 def bump_version(current_version, bump_type):
     major, minor, patch = map(int, current_version.split("."))
@@ -30,7 +40,7 @@ def bump_version(current_version, bump_type):
     else:
         raise ValueError("Invalid bump type")
 
-def update_file(path, pattern, replacement_template, new_version, max_replacements=0):
+def update_file(path, pattern, replacement_template, new_version, build_number=1, max_replacements=0):
     p = Path(path)
     if not p.exists():
         print(f"File not found: {path}")
@@ -39,7 +49,7 @@ def update_file(path, pattern, replacement_template, new_version, max_replacemen
     with open(p, "r", encoding="utf-8") as f:
         content = f.read()
 
-    replacement = replacement_template.format(new_version=new_version)
+    replacement = replacement_template.format(new_version=new_version, build_number=build_number)
     
     new_content, count = re.subn(pattern, replacement, content, count=max_replacements)
     
@@ -62,8 +72,9 @@ def main():
     
     current_version = get_current_version()
     new_version = bump_version(current_version, bump_type)
+    build_number = get_current_build_number() + 1
     
-    print(f"Bumping version from {current_version} to {new_version} (type: {bump_type})")
+    print(f"Bumping version from {current_version} to {new_version} (type: {bump_type}), build {build_number}")
     
     if args.dry_run:
         print("Dry run enabled. The following files would be updated:")
@@ -76,15 +87,9 @@ def main():
         pattern = file_info[1]
         template = file_info[2]
         max_replacements = file_info[3] if len(file_info) > 3 else 0
-        update_file(path, pattern, template, new_version, max_replacements)
+        update_file(path, pattern, template, new_version, build_number, max_replacements)
         
     # Auto commit
-    print("Running repomix...")
-    try:
-        subprocess.run(["repomix"], check=True, shell=True)
-    except Exception as e:
-        print(f"Failed to run repomix: {e}")
-
     print("Committing version changes...")
     files_to_add = [f[0] for f in FILES_TO_UPDATE]
     subprocess.run(["git", "add"] + files_to_add, check=True)
