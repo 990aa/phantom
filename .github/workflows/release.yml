@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'
 
 jobs:
-  build-release:
+  build-windows:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -35,12 +35,73 @@ jobs:
           npm ci
           npm run tauri build
 
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            ui/src-tauri/target/release/bundle/nsis/*.exe
+            ui/src-tauri/target/release/bundle/msi/*.msi
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          
+      - name: Install NDK
+        run: echo 'y' | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager 'ndk;26.1.10909125'
+
+      - name: Get Flutter deps
+        working-directory: ./android_app
+        run: flutter pub get
+
+      - name: Build APK (release)
+        working-directory: ./android_app
+        run: flutter build apk --release
+
+      - name: Build AAB (release)
+        working-directory: ./android_app
+        run: flutter build appbundle --release
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path: |
+            android_app/build/app/outputs/flutter-apk/app-release.apk
+            android_app/build/app/outputs/bundle/release/app-release.aab
+
+  create-release:
+    needs: [build-windows, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Create GitHub Release
         run: |
-          gh release create ${{ github.ref_name }} `
-            ui/src-tauri/target/release/bundle/nsis/*.exe `
-            ui/src-tauri/target/release/bundle/msi/*.msi `
-            --title 'Phantom ${{ github.ref_name }}' `
+          gh release create ${{ github.ref_name }} \
+            artifacts/windows-artifacts/*.exe \
+            artifacts/windows-artifacts/*.msi \
+            artifacts/android-artifacts/*.apk \
+            artifacts/android-artifacts/*.aab \
+            --title 'Phantom ${{ github.ref_name }}' \
             --notes-file CHANGELOG.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,39 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          
+      - name: Install NDK
+        run: echo 'y' | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager 'ndk;26.1.10909125'
+
+      - name: Get Flutter deps
+        working-directory: ./android_app
+        run: flutter pub get
+
+      - name: Run Dart unit tests
+        working-directory: ./android_app
+        run: flutter test test/unit/
+
+      - name: Build APK (debug)
+        working-directory: ./android_app
+        run: flutter build apk --debug

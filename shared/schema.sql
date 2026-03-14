@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS models (
     name TEXT NOT NULL,
     hf_repo TEXT NOT NULL,
     filename TEXT NOT NULL,
+    mmproj_filename TEXT,
     local_path TEXT,
     type TEXT NOT NULL, -- 'text' or 'vision'
     size_bytes INTEGER,

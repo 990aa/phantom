@@ -2,6 +2,17 @@ import time
 from typing import Iterator
 from .schemas import InferenceRequest, InferenceResponse
 
+def trim_context(text: str, max_tokens: int = 800) -> str:
+    lines = text.split('\n')
+    trimmed_lines = []
+    current_tokens = 0
+    for line in reversed(lines):
+        tokens = len(line) // 4
+        if current_tokens + tokens > max_tokens:
+            break
+        trimmed_lines.insert(0, line)
+        current_tokens += tokens
+    return '\n'.join(trimmed_lines)
 
 def _llm_stream(
     model, system_msg: str, user_msg: str, model_id: str
@@ -99,7 +110,8 @@ def reply(
     model, req: InferenceRequest, style_rules: str = ""
 ) -> Iterator[InferenceResponse]:
     system_msg = f"User writing style rules (follow exactly): {style_rules}\nGenerate the next message."
-    user_msg = f"Context:\n{req.context.text_before}"
+    trimmed_context = trim_context(req.context.text_before)
+    user_msg = f"Context:\n{trimmed_context}"
     return _llm_stream(
         model, system_msg, user_msg, req.model_override or "default-model"
     )
