@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 import '../db.dart';
 import '../engine/model_manager.dart';
-import 'dart:io';
 
 final modelListProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,

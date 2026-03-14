@@ -18,3 +18,15 @@ android_app/.flutter-plugins
 android_app/.flutter-plugins-dependencies
 android_app/build/
 .pytest_cache/
+.idea/
+.vscode/
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.DS_Store
+*.egg-info/
+*.egg
+*.egg-info/
+docs/

@@ -31,6 +31,9 @@ jobs:
 
       - name: Build Tauri installer
         working-directory: ./ui
+        env:
+          TAURI_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          TAURI_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           npm ci
           npm run tauri build
@@ -62,16 +65,34 @@ jobs:
       - name: Install NDK
         run: echo 'y' | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager 'ndk;26.1.10909125'
 
+      - name: Decode Android Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android_app/android/app/release.keystore
+          fi
+
       - name: Get Flutter deps
         working-directory: ./android_app
         run: flutter pub get
 
       - name: Build APK (release)
         working-directory: ./android_app
+        env:
+          ANDROID_KEYSTORE_PATH: "release.keystore"
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build apk --release
 
       - name: Build AAB (release)
         working-directory: ./android_app
+        env:
+          ANDROID_KEYSTORE_PATH: "release.keystore"
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build appbundle --release
 
       - name: Upload Android Artifacts
